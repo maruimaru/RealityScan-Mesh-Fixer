@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>RealityScan メッシュ補正</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ScanFix">
+<meta name="theme-color" content="#0f0f13">
+<link rel="apple-touch-icon" href="assets/scanfix-180.png">
+<link rel="icon" href="assets/scanfix-192.png">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Sans','Helvetica Neue',Arial,sans-serif;background:#0f0f13;color:#e8e8ec;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top,0px) + 28px) 16px 60px}
+h1{font-size:1.4rem;font-weight:700;letter-spacing:-.5px;margin-bottom:6px;text-align:center;
+  background:linear-gradient(135deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{font-size:.82rem;color:#999;margin-bottom:24px;text-align:center;line-height:1.6;max-width:600px}
+.card{background:#1a1a24;border:1px solid #2e2e3e;border-radius:16px;padding:26px;width:100%;max-width:600px;margin-bottom:20px}
+.section-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:7px;
+  background:#7c6df025;color:#a78bfa;font-size:.8rem;font-weight:700;margin-right:8px}
+.section-title{font-size:1.05rem;font-weight:700;display:flex;align-items:center;margin-bottom:4px}
+.section-desc{font-size:.78rem;color:#888;margin-bottom:18px;line-height:1.6;margin-left:32px}
+
+/* --- drop zone --- */
+.drop-zone{border:2px dashed #3a3a50;border-radius:12px;padding:36px 20px;text-align:center;cursor:pointer;
+  transition:border-color .2s,background .2s;position:relative}
+.drop-zone:hover,.drop-zone.drag-over{border-color:#7c6df0;background:rgba(124,109,240,.06)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:2rem;margin-bottom:8px}
+.drop-label{font-size:.92rem;font-weight:600;margin-bottom:4px;line-height:1.6}
+.drop-hint{font-size:.75rem;color:#666;line-height:1.6}
+
+.file-list{margin-top:16px;display:none}
+.file-list.visible{display:block}
+.file-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;
+  background:#12121a;border-radius:6px;margin-bottom:4px;font-size:.78rem;font-family:monospace}
+.badge{font-size:.62rem;padding:2px 6px;border-radius:4px;font-weight:600;background:#7c6df030;color:#a78bfa;margin-right:6px}
+
+.warn-banner{display:none;margin-top:14px;border-radius:10px;padding:12px 14px;font-size:.8rem;line-height:1.7}
+.warn-banner.visible{display:block}
+
+/* --- preview --- */
+.preview-wrap{margin-top:18px;border-radius:12px;overflow:hidden;background:#08080c;position:relative;
+  height:280px;display:none}
+.preview-wrap.visible{display:block}
+.preview-wrap canvas{display:block;width:100%;height:100%}
+.preview-toolbar{position:absolute;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;
+  align-items:center;gap:6px;z-index:5;pointer-events:auto}
+.preview-tabs{display:flex;gap:4px;background:#0008;border-radius:8px;padding:3px}
+.preview-tab{padding:5px 10px;border-radius:6px;font-size:.72rem;border:none;background:transparent;
+  color:#aaa;cursor:pointer}
+.preview-tab.active{background:#7c6df0;color:#fff}
+.preview-toggle{padding:5px 10px;border-radius:6px;font-size:.72rem;border:1px solid #444;
+  background:#0008;color:#ccc;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.preview-toggle.active{background:#7c6df0;color:#fff;border-color:#7c6df0}
+.preview-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:#555;font-size:.78rem;text-align:center;padding:0 20px}
+.preview-stats{position:absolute;bottom:8px;left:8px;font-size:.68rem;color:#999;background:#0008;
+  padding:4px 8px;border-radius:6px;font-family:monospace}
+
+/* --- option rows --- */
+.opt-group{margin-top:20px;border-top:1px solid #2a2a38;padding-top:16px}
+.opt-title{font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.opt-row{margin-bottom:16px}
+.opt-row-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+.opt-row label{font-size:.85rem;line-height:1.5;flex:1}
+.opt-row .opt-desc{font-size:.72rem;color:#777;line-height:1.6;margin-top:2px}
+.opt-val{font-family:monospace;font-size:.76rem;color:#a78bfa;white-space:nowrap}
+.opt-row input[type=range]{width:100%;accent-color:#7c6df0;margin-top:4px}
+.opt-checkline{display:flex;align-items:center;gap:10px;font-size:.85rem;margin-bottom:14px}
+.opt-checkline input[type=checkbox]{width:18px;height:18px;accent-color:#7c6df0;flex-shrink:0}
+
+.seg-group{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.seg-btn{flex:1;min-width:80px;padding:8px 6px;border-radius:8px;border:1px solid #33334a;
+  background:#15151f;color:#bbb;font-size:.74rem;cursor:pointer;text-align:center;transition:.15s}
+.seg-btn.active{border-color:#7c6df0;background:#7c6df020;color:#fff}
+
+/* --- buttons --- */
+.btn-row{display:flex;gap:10px;margin-top:22px}
+.btn{flex:1;padding:13px;border-radius:10px;font-size:.92rem;font-weight:700;cursor:pointer;border:none;
+  transition:opacity .2s,transform .1s}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn:not(:disabled):active{transform:scale(.98)}
+.btn-primary{background:linear-gradient(135deg,#7c6df0,#4f8ef5);color:#fff}
+.btn-primary:not(:disabled):hover{opacity:.9}
+.btn-secondary{background:#1f1f2c;color:#aaa;border:1px solid #33334a}
+.btn-secondary:not(:disabled):hover{background:#26263a}
+
+.progress-wrap{margin-top:16px;display:none}
+.progress-wrap.visible{display:block}
+.progress-label{font-size:.74rem;color:#999;margin-bottom:6px;display:flex;justify-content:space-between}
+.progress-bar{height:8px;border-radius:4px;background:#12121a;overflow:hidden}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,#7c6df0,#4f8ef5);transition:width .15s}
+
+.log-box{margin-top:14px;background:#0a0a10;border-radius:10px;padding:12px 14px;font-family:monospace;
+  font-size:.74rem;line-height:1.7;max-height:200px;overflow-y:auto;display:none;white-space:pre-wrap}
+.log-box.visible{display:block}
+.log-ok{color:#34d399}.log-warn{color:#fbbf24}.log-err{color:#f87171}.log-info{color:#93c5fd}
+
+.stats{margin-top:12px;display:none;font-size:.78rem;color:#999;line-height:1.8}
+.stats.visible{display:block}
+.stats b{color:#e8e8ec}
+
+/* --- save buttons --- */
+.save-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+@media (max-width:420px){.save-grid{grid-template-columns:1fr}}
+.save-btn{padding:14px 12px;border-radius:10px;border:1px solid #2e2e3e;background:#15151f;color:#ddd;
+  cursor:pointer;font-size:.82rem;text-align:left;line-height:1.5;transition:.15s}
+.save-btn:disabled{opacity:.35;cursor:not-allowed}
+.save-btn:not(:disabled):hover{border-color:#7c6df0;background:#7c6df010}
+.save-btn .save-icon{font-size:1.1rem;margin-bottom:4px;display:block}
+.save-btn .save-note{font-size:.68rem;color:#777;display:block;margin-top:3px}
+
+.chunk-list{margin-top:14px}
+.chunk-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;
+  background:#12121a;border-radius:8px;margin-bottom:6px;font-size:.78rem}
+.chunk-item button{padding:5px 10px;border-radius:6px;border:none;background:#7c6df030;color:#a78bfa;
+  font-size:.72rem;cursor:pointer}
+
+footer{margin-top:8px;font-size:.7rem;color:#444;text-align:center;max-width:600px;line-height:1.7}
+.divider-lg{margin:36px 0 4px;border-top:1px solid #2a2a38;max-width:600px;width:100%}
+</style>
+</head>
+<body>
+
+<h1>RealityScan メッシュ補正</h1>
+<p class="subtitle">
+  分裂したオブジェクトの結合、針状の突起除去、平滑化、ローポリ化をこのデバイス内だけで行います。<br>
+  すべての処理はブラウザ内で実行され、外部への送信は行われません。
+</p>
+
+<!-- ============ CARD: Import ============ -->
+<div class="card">
+  <div class="section-title"><span class="section-num">1</span>読み込み</div>
+  <div class="section-desc">RealityScanで書き出したOBJ（テクスチャ付きの場合はMTLと画像も一緒に）を選んでください。</div>
+
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" multiple accept=".obj,.mtl,.png,.jpg,.jpeg">
+    <div class="drop-icon">📦</div>
+    <div class="drop-label">ここにOBJファイルをドラッグ＆ドロップ、またはタップして選択</div>
+    <div class="drop-hint">テクスチャがある場合は、OBJ・MTL・画像をまとめて選択してください</div>
+  </div>
+
+  <div class="file-list" id="fileList">
+    <div id="fileItems"></div>
+  </div>
+
+  <div class="warn-banner" id="warnBanner"></div>
+</div>
+
+<!-- ============ CARD: Preview ============ -->
+<div class="card">
+  <div class="section-title"><span class="section-num">2</span>プレビュー</div>
+  <div class="section-desc">補正前と補正後を切り替えて、形の変化を確認できます。</div>
+
+  <div class="preview-wrap" id="previewWrap">
+    <div class="preview-toolbar">
+      <div class="preview-tabs">
+        <button class="preview-tab active" id="tabBefore">補正前</button>
+        <button class="preview-tab" id="tabAfter">補正後</button>
+      </div>
+      <button class="preview-toggle" id="wireToggle">ワイヤ表示</button>
+    </div>
+    <canvas id="previewCanvas"></canvas>
+    <div class="preview-stats" id="previewStats"></div>
+  </div>
+  <div class="preview-wrap visible" id="previewEmptyWrap" style="height:120px">
+    <div class="preview-empty">ファイルを読み込むとここにプレビューが表示されます</div>
+  </div>
+</div>
+
+<!-- ============ CARD: 4. 形の仕上げ ============ -->
+<div class="card">
+  <div class="section-title"><span class="section-num">4</span>形の仕上げ</div>
+
+  <div class="opt-group" style="border-top:none;padding-top:0">
+    <div class="opt-row">
+      <div class="opt-row-top">
+        <label>分裂オブジェクト結合距離</label>
+        <span class="opt-val" id="weldDistVal">0.0015</span>
+      </div>
+      <div class="opt-desc">近接頂点を自動溶接します。分裂が強ければ上げ、形が潰れるなら下げます。</div>
+      <input type="range" id="weldDist" min="0" max="200" value="15">
+    </div>
+
+    <div class="opt-row">
+      <div class="opt-row-top">
+        <label>針状面の検出強度</label>
+        <span class="opt-val" id="spikeRatioVal">12</span>
+      </div>
+      <div class="opt-desc">細長すぎる三角形を除去します。値を下げるほど積極的です。</div>
+      <input type="range" id="spikeRatio" min="3" max="50" value="12">
+    </div>
+
+    <div class="opt-row">
+      <div class="opt-row-top">
+        <label>平滑化の回数</label>
+        <span class="opt-val" id="smoothIterVal">2</span>
+      </div>
+      <div class="opt-desc">荒れた表面をなめらかにします。</div>
+      <input type="range" id="smoothIter" min="0" max="10" value="2">
+    </div>
+
+    <div class="opt-row">
+      <label>形をローポリ風にする度合い</label>
+      <div class="opt-desc">面の数を減らし、既存の立体の組み合わせに近い見た目へ寄せます。</div>
+      <div class="seg-group" id="lowpolyDegreeGroup">
+        <button class="seg-btn active" data-val="0">しない<br><span style="opacity:.6">元の形を保つ</span></button>
+        <button class="seg-btn" data-val="0.2">弱め<br><span style="opacity:.6">少し軽くする</span></button>
+        <button class="seg-btn" data-val="0.5">標準<br><span style="opacity:.6">角を少し整理</span></button>
+        <button class="seg-btn" data-val="0.75">強め<br><span style="opacity:.6">ローポリ感を出す</span></button>
+      </div>
+    </div>
+
+    <div class="opt-row">
+      <label>ローポリ化のスタイル</label>
+      <div class="opt-desc">同じローポリ化でも、角ばり方や面の出方を変えられます。</div>
+      <div class="seg-group" id="lowpolyStyleGroup">
+        <button class="seg-btn active" data-val="standard">標準</button>
+        <button class="seg-btn" data-val="cube">立方体寄り</button>
+        <button class="seg-btn" data-val="chamfer">面取り寄り</button>
+        <button class="seg-btn" data-val="crystal">結晶風</button>
+        <button class="seg-btn" data-val="sphere">球状<br><span style="opacity:.6">頂点多め・曲面重視</span></button>
+      </div>
+    </div>
+
+    <div class="opt-row">
+      <label>テクスチャをローポリ風にする度合い</label>
+      <div class="opt-desc">色の数を減らし、あえて単純な質感にします。（テクスチャが読み込まれている場合のみ有効）</div>
+      <div class="seg-group" id="lowpolyTexGroup">
+        <button class="seg-btn active" data-val="0">しない<br><span style="opacity:.6">元の見た目を保つ</span></button>
+        <button class="seg-btn" data-val="1">弱め<br><span style="opacity:.6">少し単純化</span></button>
+        <button class="seg-btn" data-val="2">標準<br><span style="opacity:.6">色数を減らす</span></button>
+        <button class="seg-btn" data-val="3">強め<br><span style="opacity:.6">ベタ塗り風</span></button>
+      </div>
+    </div>
+
+    <div class="opt-checkline">
+      <input type="checkbox" id="keepLargest" checked>
+      <label for="keepLargest">最大コンポーネントのみ残す（分裂した断片を除去）</label>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" id="convertBtn" disabled>自動補正を実行</button>
+    <button class="btn btn-secondary" id="resetBtn" disabled>補正前に戻す</button>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label"><span id="progressStage">準備中...</span><span id="progressPct">0%</span></div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="log-box" id="logBox"></div>
+  <div class="stats" id="stats"></div>
+</div>
+
+<!-- ============ CARD: 5. 保存 ============ -->
+<div class="card">
+  <div class="section-title"><span class="section-num">5</span>保存</div>
+  <div class="section-desc">補正後の形状を、使いたいアプリに合わせた形式で保存します。</div>
+
+  <div class="save-grid">
+    <button class="save-btn" id="saveObjBtn" disabled>
+      <span class="save-icon">📐</span>OBJで保存（形状のみ）
+      <span class="save-note">Nomad Sculpt / Forger / Uniform 全般で使用可</span>
+    </button>
+    <button class="save-btn" id="saveObjTexBtn" disabled>
+      <span class="save-icon">🗂️</span>テクスチャ付きOBJで保存（.zip）
+      <span class="save-note">OBJ + MTL + 画像をまとめて出力</span>
+    </button>
+    <button class="save-btn" id="saveGlbBtn" disabled>
+      <span class="save-icon">🧊</span>GLBで保存
+      <span class="save-note">Nomad Sculpt での読み込みが安定</span>
+    </button>
+    <button class="save-btn" id="saveUsdzBtn" disabled>
+      <span class="save-icon">🍎</span>USDZで保存
+      <span class="save-note">iPadでのAR/クイックルック表示向け（試験的）</span>
+    </button>
+  </div>
+
+  <div class="opt-checkline" style="margin-top:18px">
+    <input type="checkbox" id="chunkedOutput">
+    <label for="chunkedOutput">大きなファイルのため分割出力を使う（複数ファイルに分けて保存）</label>
+  </div>
+  <div id="chunkedOpts" style="display:none">
+    <div class="opt-row">
+      <div class="opt-row-top"><label>1ファイルあたりの目安面数</label><span class="opt-val" id="chunkFaceCountVal">150,000</span></div>
+      <input type="range" id="chunkFaceCount" min="50000" max="500000" step="10000" value="150000">
+    </div>
+  </div>
+
+  <div class="chunk-list" id="chunkList"></div>
+
+  <div class="log-box" id="saveLogBox"></div>
+</div>
+
+<div class="divider-lg"></div>
+
+<!-- ============ CARD: Merge tool (kept from previous version) ============ -->
+<div class="card">
+  <div class="section-title"><span class="section-num">6</span>分割ファイルの統合</div>
+  <div class="section-desc">分割出力した複数のOBJファイルを、まとめて読み込んで1つに統合します。</div>
+
+  <div class="drop-zone" id="mergeDropZone">
+    <input type="file" id="mergeFileInput" multiple accept=".obj">
+    <div class="drop-icon">🧩</div>
+    <div class="drop-label">分割出力されたOBJファイルをすべて選択</div>
+    <div class="drop-hint">2つ以上のファイルを選択してください</div>
+  </div>
+
+  <div class="file-list" id="mergeFileList">
+    <div id="mergeFileItems"></div>
+  </div>
+
+  <div class="opt-row" style="margin-top:16px">
+    <div class="opt-row-top"><label>境界の結合距離（継ぎ目を閉じる）</label><span class="opt-val" id="mergeWeldDistVal">0.0020</span></div>
+    <input type="range" id="mergeWeldDist" min="0" max="200" value="20">
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" id="mergeBtn" disabled>統合する</button>
+  </div>
+
+  <div class="progress-wrap" id="mergeProgressWrap">
+    <div class="progress-label"><span id="mergeProgressStage">準備中...</span><span id="mergeProgressPct">0%</span></div>
+    <div class="progress-bar"><div class="progress-fill" id="mergeProgressFill"></div></div>
+  </div>
+
+  <div class="log-box" id="mergeLogBox"></div>
+  <div class="stats" id="mergeStats"></div>
+  <button class="btn btn-primary" id="mergeDownloadBtn" style="display:none;margin-top:12px">統合済みOBJをダウンロード</button>
+</div>
+
+<footer>
+  すべての処理はこのデバイス内（ブラウザ）のみで行われます。外部サーバーへのアップロードは発生しません。
+</footer>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.160.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://unpkg.com/three@0.160.0/examples/js/exporters/GLTFExporter.js"></script>
+<script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
