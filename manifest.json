@@ -1,0 +1,16 @@
+{
+  "name": "RealityScan メッシュ補正ツール",
+  "short_name": "ScanFix",
+  "description": "RealityScanのOBJメッシュを分裂結合・針状突起除去・平滑化・ローポリ化で補正するオフラインWebアプリ",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f0f13",
+  "theme_color": "#0f0f13",
+  "icons": [
+    { "src": "assets/scanfix-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/scanfix-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
