@@ -136,43 +136,147 @@ function quickEstimateCounts(text){
 }
 
 async function handleFiles(files){
-  const obj = files.find(f => f.name.toLowerCase().endsWith('.obj'));
-  const mtl = files.find(f => f.name.toLowerCase().endsWith('.mtl'));
-  const textures = files.filter(f => /\.(png|jpe?g)$/i.test(f.name));
-  if (!obj) { log('OBJファイルが見つかりませんでした。', 'log-warn'); return; }
+    // --- glTF folder (scene.gltf + scene.bin + textures) detection ---
+    const gltfFile = files.find(f => f.name.toLowerCase().endsWith('.gltf'));
+    const glbFile  = files.find(f => f.name.toLowerCase().endsWith('.glb'));
 
-  rawFiles = { obj, mtl, textures };
-  fileItems.innerHTML = '';
-  [obj, mtl, ...textures].filter(Boolean).forEach(f => {
-    const ext = f.name.split('.').pop().toUpperCase();
-    const div = document.createElement('div');
-    div.className = 'file-item';
-    div.innerHTML = `<span><span class="badge">${ext}</span>${f.name}</span><span>${(f.size/1024/1024).toFixed(1)} MB</span>`;
-    fileItems.appendChild(div);
-  });
-  fileList.classList.add('visible');
+    if (gltfFile || glbFile) {
+      await handleGltfFolder(files, gltfFile, glbFile);
+      return;
+    }
 
-  const text = await obj.text();
-  rawFiles.objText = text;
-  const { v, f } = quickEstimateCounts(text);
-  log(`読み込み: 頂点 約${v.toLocaleString()} / 面 約${f.toLocaleString()}`, 'log-info');
-  showSizeWarning((obj.size/1024/1024), f);
+    // --- classic OBJ + MTL + textures flow ---
+    const obj = files.find(f => f.name.toLowerCase().endsWith('.obj'));
+    const mtl = files.find(f => f.name.toLowerCase().endsWith('.mtl'));
+    const textures = files.filter(f => /\.(png|jpe?g)$/i.test(f.name));
+    if (!obj) { log('OBJ・glTFファイルが見つかりませんでした。フォルダを選び直してください。', 'log-warn'); return; }
 
-  setProgress('解析中 / Parsing OBJ', 0);
-  originalMesh = await parseOBJ(text, p => setProgress('解析中', p));
-  originalMesh.hasTexture = !!(mtl && textures.length);
-  fixedMesh = null;
+    rawFiles = { obj, mtl, textures };
+    fileItems.innerHTML = '';
+    [obj, mtl, ...textures].filter(Boolean).forEach(f => {
+      const ext = f.name.split('.').pop().toUpperCase();
+      const div = document.createElement('div');
+      div.className = 'file-item';
+      div.innerHTML = `<span><span class="badge">${ext}</span>${f.name}</span><span>${(f.size/1024/1024).toFixed(1)} MB</span>`;
+      fileItems.appendChild(div);
+    });
+    fileList.classList.add('visible');
 
-  convertBtn.disabled = false;
-  resetBtn.disabled = true;
-  [saveObjBtn, saveGlbBtn, saveUsdzBtn].forEach(b => b.disabled = false);
-  saveObjTexBtn.disabled = !originalMesh.hasTexture;
-  if (!originalMesh.hasTexture) saveObjTexBtn.title = 'テクスチャファイルが読み込まれていません';
+    const text = await obj.text();
+    rawFiles.objText = text;
+    const { v, f } = quickEstimateCounts(text);
+    log(`読み込み: 頂点 約${v.toLocaleString()} / 面 約${f.toLocaleString()}`, 'log-info');
+    showSizeWarning((obj.size/1024/1024), f);
 
-  initPreview();
-  showPreviewMesh(originalMesh, 'before');
-  log(`解析完了: 頂点 ${(originalMesh.positions.length/3).toLocaleString()} / 面 ${(originalMesh.faces.length/3).toLocaleString()}`, 'log-ok');
-}
+    setProgress('解析中 / Parsing OBJ', 0);
+    originalMesh = await parseOBJ(text, p => setProgress('解析中', p));
+    originalMesh.hasTexture = !!(mtl && textures.length);
+    fixedMesh = null;
+
+    convertBtn.disabled = false;
+    resetBtn.disabled = true;
+    [saveObjBtn, saveGlbBtn, saveUsdzBtn].forEach(b => b.disabled = false);
+    saveObjTexBtn.disabled = !originalMesh.hasTexture;
+    if (!originalMesh.hasTexture) saveObjTexBtn.title = 'テクスチャファイルが読み込まれていません';
+
+    initPreview();
+    showPreviewMesh(originalMesh, 'before');
+    log(`解析完了: 頂点 ${(originalMesh.positions.length/3).toLocaleString()} / 面 ${(originalMesh.faces.length/3).toLocaleString()}`, 'log-ok');
+  }
+
+  /* ---------- glTF/GLB folder import: merge scene.gltf + scene.bin + textures into one mesh ---------- */
+  async function handleGltfFolder(files, gltfFile, glbFile){
+    fileItems.innerHTML = '';
+    files.forEach(f => {
+      const ext = f.name.split('.').pop().toUpperCase();
+      const div = document.createElement('div');
+      div.className = 'file-item';
+      div.innerHTML = `<span><span class="badge">${ext}</span>${f.webkitRelativePath || f.name}</span><span>${(f.size/1024/1024).toFixed(1)} MB</span>`;
+      fileItems.appendChild(div);
+    });
+    fileList.classList.add('visible');
+
+    rawFiles = { obj:null, mtl:null, textures: files.filter(f => /\.(png|jpe?g)$/i.test(f.name)), gltfFiles: files };
+
+    log(`読み込み: ${gltfFile ? gltfFile.name : glbFile.name}（フォルダ一式 ${files.length} 個のファイル）`, 'log-info');
+    setProgress('解析中 / Parsing glTF', 0);
+
+    try {
+      // Build a blob URL map so THREE.GLTFLoader can resolve scene.bin / texture URIs by filename
+      const urlMap = new Map();
+      files.forEach(f => {
+        const url = URL.createObjectURL(f);
+        urlMap.set(f.name, url);
+        if (f.webkitRelativePath) {
+          const parts = f.webkitRelativePath.split('/');
+          for (let i = 1; i < parts.length; i++) urlMap.set(parts.slice(i).join('/'), url);
+        }
+      });
+
+      const manager = new THREE.LoadingManager();
+      manager.setURLModifier(url => {
+        const decoded = decodeURIComponent(url).replace(/\\/g, '/');
+        const fname = decoded.split('/').pop();
+        return urlMap.get(decoded) || urlMap.get(fname) || url;
+      });
+
+      const loader = new THREE.GLTFLoader(manager);
+      const rootUrl = URL.createObjectURL(gltfFile || glbFile);
+
+      const gltf = await new Promise((resolve, reject) => loader.load(rootUrl, resolve, undefined, reject));
+
+      // Merge all meshes in the scene into one positions/faces buffer
+      const positions = [], faces = [];
+      let vOffset = 0;
+      gltf.scene.updateMatrixWorld(true);
+      gltf.scene.traverse(obj3d => {
+        if (!obj3d.isMesh || !obj3d.geometry) return;
+        const geo = obj3d.geometry;
+        const posAttr = geo.attributes.position;
+        if (!posAttr) return;
+        const m = obj3d.matrixWorld;
+        const v3 = new THREE.Vector3();
+        for (let i = 0; i < posAttr.count; i++) {
+          v3.fromBufferAttribute(posAttr, i).applyMatrix4(m);
+          positions.push(v3.x, v3.y, v3.z);
+        }
+        if (geo.index) {
+          for (let i = 0; i < geo.index.count; i++) faces.push(geo.index.array[i] + vOffset);
+        } else {
+          for (let i = 0; i < posAttr.count; i++) faces.push(i + vOffset);
+        }
+        vOffset += posAttr.count;
+      });
+
+      if (positions.length === 0) throw new Error('メッシュデータが見つかりませんでした');
+
+      originalMesh = {
+        positions: new Float32Array(positions),
+        faces: new Uint32Array(faces),
+        uvs: [], faceUV: [],
+        hasTexture: false
+      };
+      fixedMesh = null;
+
+      // Fake an "obj" reference so save functions keep working (baseName only)
+      const baseName = (gltfFile || glbFile).name.replace(/\.(gltf|glb)$/i,'');
+      rawFiles.obj = { name: baseName + '.obj' };
+
+      convertBtn.disabled = false;
+      resetBtn.disabled = true;
+      [saveObjBtn, saveGlbBtn, saveUsdzBtn].forEach(b => b.disabled = false);
+      saveObjTexBtn.disabled = true;
+      saveObjTexBtn.title = 'glTF取り込みではテクスチャ付きOBJ出力は未対応です';
+
+      initPreview();
+      showPreviewMesh(originalMesh, 'before');
+      setProgress('完了', 100);
+      log(`glTF解析完了: 頂点 ${(originalMesh.positions.length/3).toLocaleString()} / 面 ${(originalMesh.faces.length/3).toLocaleString()}`, 'log-ok');
+    } catch (err) {
+      log('glTF読み込みエラー: ' + err.message, 'log-err');
+      console.error(err);
+    }
+  }
 
 function showSizeWarning(fileSizeMB, estF){
   let msg = '', color = null;
