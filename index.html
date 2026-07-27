@@ -133,10 +133,10 @@ footer{margin-top:8px;font-size:.7rem;color:#444;text-align:center;max-width:600
   <div class="section-desc">RealityScanで書き出したOBJ（テクスチャ付きの場合はMTLと画像も一緒に）を選んでください。</div>
 
   <div class="drop-zone" id="dropZone">
-    <input type="file" id="fileInput" multiple accept=".obj,.mtl,.png,.jpg,.jpeg">
+    <input type="file" id="fileInput" multiple webkitdirectory accept=".obj,.mtl,.png,.jpg,.jpeg,.gltf,.bin">
     <div class="drop-icon">📦</div>
     <div class="drop-label">ここにOBJファイルをドラッグ＆ドロップ、またはタップして選択</div>
-    <div class="drop-hint">テクスチャがある場合は、OBJ・MTL・画像をまとめて選択してください</div>
+    <div class="drop-hint">RealityScanの書き出しフォルダ（scene.gltf・scene.bin・textures を含む）を丸ごと選択、またはOBJ+MTL+画像をまとめて選択してください</div>
   </div>
 
   <div class="file-list" id="fileList">
