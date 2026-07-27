@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>RealityScan メッシュ補正</title>
-<link rel="manifest" href="manifest.json">
+>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ScanFix">
 <meta name="theme-color" content="#0f0f13">
-<link rel="apple-touch-icon" href="assets/scanfix-180.png">
-<link rel="icon" href="assets/scanfix-192.png">
+/scanfix-180.png">
+/scanfix-192.png">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Hiragino Sans','Helvetica Neue',Arial,sans-serif;background:#0f0f13;color:#e8e8ec;
@@ -33,13 +33,11 @@ h1{font-size:1.4rem;font-weight:700;letter-spacing:-.5px;margin-bottom:6px;text-
 .drop-icon{font-size:2rem;margin-bottom:8px}
 .drop-label{font-size:.92rem;font-weight:600;margin-bottom:4px;line-height:1.6}
 .drop-hint{font-size:.75rem;color:#666;line-height:1.6}
-
 .file-list{margin-top:16px;display:none}
 .file-list.visible{display:block}
 .file-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;
   background:#12121a;border-radius:6px;margin-bottom:4px;font-size:.78rem;font-family:monospace}
 .badge{font-size:.62rem;padding:2px 6px;border-radius:4px;font-weight:600;background:#7c6df030;color:#a78bfa;margin-right:6px}
-
 .warn-banner{display:none;margin-top:14px;border-radius:10px;padding:12px 14px;font-size:.8rem;line-height:1.7}
 .warn-banner.visible{display:block}
 
@@ -73,7 +71,6 @@ h1{font-size:1.4rem;font-weight:700;letter-spacing:-.5px;margin-bottom:6px;text-
 .opt-row input[type=range]{width:100%;accent-color:#7c6df0;margin-top:4px}
 .opt-checkline{display:flex;align-items:center;gap:10px;font-size:.85rem;margin-bottom:14px}
 .opt-checkline input[type=checkbox]{width:18px;height:18px;accent-color:#7c6df0;flex-shrink:0}
-
 .seg-group{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .seg-btn{flex:1;min-width:80px;padding:8px 6px;border-radius:8px;border:1px solid #33334a;
   background:#15151f;color:#bbb;font-size:.74rem;cursor:pointer;text-align:center;transition:.15s}
@@ -89,18 +86,15 @@ h1{font-size:1.4rem;font-weight:700;letter-spacing:-.5px;margin-bottom:6px;text-
 .btn-primary:not(:disabled):hover{opacity:.9}
 .btn-secondary{background:#1f1f2c;color:#aaa;border:1px solid #33334a}
 .btn-secondary:not(:disabled):hover{background:#26263a}
-
 .progress-wrap{margin-top:16px;display:none}
 .progress-wrap.visible{display:block}
 .progress-label{font-size:.74rem;color:#999;margin-bottom:6px;display:flex;justify-content:space-between}
 .progress-bar{height:8px;border-radius:4px;background:#12121a;overflow:hidden}
 .progress-fill{height:100%;width:0%;background:linear-gradient(90deg,#7c6df0,#4f8ef5);transition:width .15s}
-
 .log-box{margin-top:14px;background:#0a0a10;border-radius:10px;padding:12px 14px;font-family:monospace;
   font-size:.74rem;line-height:1.7;max-height:200px;overflow-y:auto;display:none;white-space:pre-wrap}
 .log-box.visible{display:block}
 .log-ok{color:#34d399}.log-warn{color:#fbbf24}.log-err{color:#f87171}.log-info{color:#93c5fd}
-
 .stats{margin-top:12px;display:none;font-size:.78rem;color:#999;line-height:1.8}
 .stats.visible{display:block}
 .stats b{color:#e8e8ec}
