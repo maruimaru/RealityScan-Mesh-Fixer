@@ -1,5 +1,9 @@
 # RealityScan メッシュ補正ツール（ScanFix）
 
+[![このアプリを今すぐ開く](https://img.shields.io/badge/%F0%9F%9A%80%20%E4%BB%8A%E3%81%99%E3%81%90%E9%96%8B%E3%81%8F-ScanFix%20%E3%82%92%E9%96%8B%E3%81%8F-7c6df0?style=for-the-badge)](https://maruimaru.github.io/RealityScan-Mesh-Fixer/)
+
+ブラウザで上のボタンをタップするだけで、すぐにアプリが使えます。インストールや登録は不要です。
+
 iPad Pro の RealityScan で取り込んだ OBJ メッシュを、**ブラウザ内だけで**補正・整形できる PWA（Progressive Web App）です。
 サーバーへのアップロードは一切発生せず、すべての処理はデバイス上で完結します。
 
