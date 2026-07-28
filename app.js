@@ -903,16 +903,17 @@ async function saveAsGLB(){
   geo.computeVertexNormals();
   const mat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness:0.8 });
   const meshObj = new THREE.Mesh(geo, mat);
-
   const exporter = new THREE.GLTFExporter();
-  exporter.parse(meshObj, (result) => {
-    const blob = new Blob([result], { type:'application/octet-stream' });
-    const baseName = rawFiles.obj ? rawFiles.obj.name.replace(/\.obj$/i,'') : 'model';
-    downloadBlob(blob, baseName + '_fixed.glb');
-    saveLog('GLBを保存しました。', 'log-ok');
-  }, (err) => {
+  try {
+    exporter.parse(meshObj, (result) => {
+      const blob = new Blob([result], { type:'application/octet-stream' });
+      const baseName = rawFiles.obj ? rawFiles.obj.name.replace(/\.obj$/i,'') : 'model';
+      downloadBlob(blob, baseName + '_fixed.glb');
+      saveLog('GLBを保存しました。', 'log-ok');
+    }, { binary: true }); // 3引数構成に修正
+  } catch (err) {
     saveLog('GLB生成エラー: ' + err.message, 'log-err');
-  }, { binary: true });
+  }
 }
 
 async function saveAsUSDZ(){
