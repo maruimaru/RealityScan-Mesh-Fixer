@@ -175,6 +175,15 @@ async function handleFiles(files){
     setProgress('解析中 / Parsing OBJ', 0);
     originalMesh = await parseOBJ(text, p => setProgress('解析中', p));
     originalMesh.hasTexture = !!(mtl && textures.length);
+    if (originalMesh.hasTexture) {
+      const texFile = textures[0]; // 簡易的に最初のテクスチャを採用
+      const img = new Image();
+      await new Promise((resolve) => {
+       img.onload = resolve;
+       img.src = URL.createObjectURL(texFile);
+      });
+      originalMesh.textureImage = img;
+    }
     fixedMesh = null;
 
     convertBtn.disabled = false;
@@ -230,13 +239,15 @@ async function handleFiles(files){
       const gltf = await new Promise((resolve, reject) => loader.load(rootUrl, resolve, undefined, reject));
 
       // Merge all meshes in the scene into one positions/faces buffer
-      const positions = [], faces = [];
-      let vOffset = 0;
-      gltf.scene.updateMatrixWorld(true);
-      gltf.scene.traverse(obj3d => {
+     const positions = [], faces = [], uvs = [];
+   　let vOffset = 0;
+   　let extractedTexture = null;
+   　gltf.scene.updateMatrixWorld(true);
+   　gltf.scene.traverse(obj3d => {
         if (!obj3d.isMesh || !obj3d.geometry) return;
         const geo = obj3d.geometry;
         const posAttr = geo.attributes.position;
+        const uvAttr = geo.attributes.uv;
         if (!posAttr) return;
         const m = obj3d.matrixWorld;
         const v3 = new THREE.Vector3();
@@ -249,6 +260,12 @@ async function handleFiles(files){
         } else {
           for (let i = 0; i < posAttr.count; i++) faces.push(i + vOffset);
         }
+        if (uvAttr) {
+          for (let i = 0; i < uvAttr.count; i++) uvs.push(uvAttr.array[i*2], uvAttr.array[i*2+1]);
+        }
+        if (!extractedTexture && obj3d.material && obj3d.material.map) {
+          extractedTexture = obj3d.material.map.image;
+        }
         vOffset += posAttr.count;
       });
 
@@ -257,8 +274,9 @@ async function handleFiles(files){
       originalMesh = {
         positions: new Float32Array(positions),
         faces: new Uint32Array(faces),
-        uvs: [], faceUV: [],
-        hasTexture: false
+        uvs: uvs.length ? new Float32Array(uvs) : [],
+        textureImage: extractedTexture,
+        hasTexture: !!(uvs.length && extractedTexture)
       };
       fixedMesh = null;
 
@@ -759,6 +777,9 @@ function showPreviewMesh(mesh, mode){
 
   previewMode = mode;
   previewStats.textContent = `頂点 ${(mesh.positions.length/3).toLocaleString()} / 面 ${(mesh.faces.length/3).toLocaleString()}`;
+  if (mesh.hasTexture) {
+    log('※テクスチャは処理が重くなるため、プレビュー画面では意図的に表示していません（GLB保存時のみ反映されます）', 'log-info');
+  }
 }
 
 function setActiveTab(mode){
