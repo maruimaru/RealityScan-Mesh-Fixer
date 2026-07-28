@@ -895,22 +895,29 @@ async function saveAsOBJWithTexture(){
 async function saveAsGLB(){
   const mesh = activeMeshForSave();
   if (!mesh) return;
-  saveLogBox.innerHTML = '';
-  saveLog('GLBを生成しています...', 'log-info');
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
   geo.setIndex(new THREE.BufferAttribute(mesh.faces, 1));
   geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness:0.8 });
+
+  let mat;
+  if (mesh.hasTexture && mesh.uvs) {
+    geo.setAttribute('uv', new THREE.BufferAttribute(mesh.uvs, 2));
+    const texture = new THREE.Texture(mesh.textureImage);
+    texture.needsUpdate = true;
+    texture.flipY = false; // glTF/OBJ由来の場合はUV上下反転に注意
+    mat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.8 });
+  } else {
+    mat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.8 });
+  }
+
   const meshObj = new THREE.Mesh(geo, mat);
   const exporter = new THREE.GLTFExporter();
-  try {
-    exporter.parse(meshObj, (result) => {
-      const blob = new Blob([result], { type:'application/octet-stream' });
-      const baseName = rawFiles.obj ? rawFiles.obj.name.replace(/\.obj$/i,'') : 'model';
-      downloadBlob(blob, baseName + '_fixed.glb');
-      saveLog('GLBを保存しました。', 'log-ok');
-    }, { binary: true }); // 3引数構成に修正
+  exporter.parse(meshObj, (result) => {
+    const blob = new Blob([result], { type: 'application/octet-stream' });
+    downloadBlob(blob, (rawFiles.obj?.name.replace(/\.obj$/i,'') || 'model') + '_fixed.glb');
+    saveLog('テクスチャ付きGLBを保存しました。', 'log-ok');
+  }, { binary: true });// 3引数構成に修正
   } catch (err) {
     saveLog('GLB生成エラー: ' + err.message, 'log-err');
   }
