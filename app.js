@@ -21,6 +21,7 @@ const tabBefore = document.getElementById('tabBefore');
 const tabAfter  = document.getElementById('tabAfter');
 const wireToggle = document.getElementById('wireToggle');
     const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const resetViewBtn = document.getElementById('resetViewBtn');
 
 const weldDistEl    = document.getElementById('weldDist');
 const weldDistVal   = document.getElementById('weldDistVal');
@@ -787,6 +788,11 @@ wireToggle.addEventListener('click', () => {
         resizeRenderer();
       }
     });
+resetViewBtn.addEventListener('click', () => {
+  controlsState.rotX = 0.3;
+  controlsState.rotY = 0.6;
+  controlsState.dist = 3;
+});
 
 /* ==========================================================================
    5. 保存 — export in multiple formats, with optional chunked split
