@@ -907,12 +907,13 @@ async function saveAsGLB(){
     texture.needsUpdate = true;
     texture.flipY = false; // glTF/OBJ由来の場合はUV上下反転に注意
     mat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.8 });
-  } else {
+  } else {  // ←追加
     mat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.8 });
   }
 
   const meshObj = new THREE.Mesh(geo, mat);
   const exporter = new THREE.GLTFExporter();
+  try {
   exporter.parse(meshObj, (result) => {
     const blob = new Blob([result], { type: 'application/octet-stream' });
     downloadBlob(blob, (rawFiles.obj?.name.replace(/\.obj$/i,'') || 'model') + '_fixed.glb');
