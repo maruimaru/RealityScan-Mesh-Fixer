@@ -58,6 +58,9 @@ h1{font-size:1.4rem;font-weight:700;letter-spacing:-.5px;margin-bottom:6px;text-
   color:#555;font-size:.78rem;text-align:center;padding:0 20px}
 .preview-stats{position:absolute;bottom:8px;left:8px;font-size:.68rem;color:#999;background:#0008;
   padding:4px 8px;border-radius:6px;font-family:monospace}
+.preview-toggle.fullscreen-btn{margin-left:auto}
+.preview-wrap.fullscreen{position:fixed;inset:0;height:100vh;z-index:1000;border-radius:0;margin-top:0}
+.preview-wrap.fullscreen canvas{height:100vh}
 
 /* --- option rows --- */
 .opt-group{margin-top:20px;border-top:1px solid #2a2a38;padding-top:16px}
@@ -157,10 +160,12 @@ footer{margin-top:8px;font-size:.7rem;color:#444;text-align:center;max-width:600
         <button class="preview-tab" id="tabAfter">補正後</button>
       </div>
       <button class="preview-toggle" id="wireToggle">ワイヤ表示</button>
+          <button class="preview-toggle fullscreen-btn" id="fullscreenBtn" title="全画面表示">⛶ 拡大</button>
     </div>
     <canvas id="previewCanvas"></canvas>
     <div class="preview-stats" id="previewStats"></div>
   </div>
+      
   <div class="preview-wrap visible" id="previewEmptyWrap" style="height:120px">
     <div class="preview-empty">ファイルを読み込むとここにプレビューが表示されます</div>
   </div>
