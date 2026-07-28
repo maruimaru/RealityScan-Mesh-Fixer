@@ -20,6 +20,7 @@ const previewStats     = document.getElementById('previewStats');
 const tabBefore = document.getElementById('tabBefore');
 const tabAfter  = document.getElementById('tabAfter');
 const wireToggle = document.getElementById('wireToggle');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
 
 const weldDistEl    = document.getElementById('weldDist');
 const weldDistVal   = document.getElementById('weldDistVal');
@@ -653,6 +654,7 @@ convertBtn.addEventListener('click', async () => {
     resetBtn.disabled = false;
     showPreviewMesh(fixedMesh, 'after');
     setActiveTab('after');
+    previewWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
   } catch (err) {
     log('エラー: ' + err.message, 'log-err');
@@ -723,8 +725,9 @@ function initPreview(){
 }
 function resizeRenderer(){
   if (!renderer) return;
-  const w = previewCanvas.clientWidth || 300, h = 280;
-  renderer.setSize(w, h, false);
+    const isFs = previewWrap.classList.contains('fullscreen');
+    const w = previewCanvas.clientWidth || 300, h = isFs ? window.innerHeight : 280; 
+     renderer.setSize(w, h, false);
   camera.aspect = w/h;
   camera.updateProjectionMatrix();
 }
@@ -769,6 +772,21 @@ wireToggle.addEventListener('click', () => {
   wireToggle.classList.toggle('active', wireframeOn);
   if (currentObject) currentObject.material.wireframe = wireframeOn;
 });
+
+    fullscreenBtn.addEventListener('click', () => {
+      const isFs = previewWrap.classList.toggle('fullscreen');
+      fullscreenBtn.classList.toggle('active', isFs);
+      fullscreenBtn.textContent = isFs ? '✕ 閉じる' : '⛶ 拡大';
+      resizeRenderer();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && previewWrap.classList.contains('fullscreen')) {
+        previewWrap.classList.remove('fullscreen');
+        fullscreenBtn.classList.remove('active');
+        fullscreenBtn.textContent = '⛶ 拡大';
+        resizeRenderer();
+      }
+    });
 
 /* ==========================================================================
    5. 保存 — export in multiple formats, with optional chunked split
