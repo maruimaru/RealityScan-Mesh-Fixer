@@ -22,6 +22,8 @@ const tabAfter  = document.getElementById('tabAfter');
 const wireToggle = document.getElementById('wireToggle');
     const fullscreenBtn = document.getElementById('fullscreenBtn');
     const resetViewBtn = document.getElementById('resetViewBtn');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
 
 const weldDistEl    = document.getElementById('weldDist');
 const weldDistVal   = document.getElementById('weldDistVal');
@@ -793,6 +795,12 @@ resetViewBtn.addEventListener('click', () => {
   controlsState.rotY = 0.6;
   controlsState.dist = 3;
 });
+const ZOOM_MIN = 0.15, ZOOM_MAX = 20, ZOOM_STEP = 0.82;
+function applyZoom(factor){
+  controlsState.dist = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, controlsState.dist * factor));
+}
+zoomInBtn.addEventListener('click', () => applyZoom(ZOOM_STEP));
+zoomOutBtn.addEventListener('click', () => applyZoom(1 / ZOOM_STEP));
 
 /* ==========================================================================
    5. 保存 — export in multiple formats, with optional chunked split
