@@ -548,39 +548,19 @@ async function lowpolyReduce(mesh, degree, style, onProgress){
   if (degree <= 0) return mesh;
   const { positions, faces } = mesh;
   const vCount = positions.length/3;
+
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity,minZ=Infinity,maxZ=-Infinity;
   for (let i=0;i<vCount;i++){
     const x=positions[i*3],y=positions[i*3+1],z=positions[i*3+2];
-    const k = cellOf(x,y,z);
-    let cIdx = clusterMap.get(k);
-    if (cIdx === undefined) {
-      cIdx = clusterSum.length/3;
-      clusterMap.set(k, cIdx);
-      clusterSum.push(x,y,z);
-      clusterCount.push(1);
-      if (clusterUVSum) clusterUVSum.push(mesh.uvs[i*2], mesh.uvs[i*2+1]);  // ←追加②
-    } else {
-      clusterSum[cIdx*3]+=x; clusterSum[cIdx*3+1]+=y; clusterSum[cIdx*3+2]+=z;
-      clusterCount[cIdx]++;
-      if (clusterUVSum) {  // ←追加②
-        clusterUVSum[cIdx*2]+=mesh.uvs[i*2];
-        clusterUVSum[cIdx*2+1]+=mesh.uvs[i*2+1];
-      }
-    }
-    clusterOf[i] = cIdx;
-    if (i % CHUNK === 0) { onProgress && onProgress(i/vCount*60); await yieldFrame(); }
-  }
     if(x<minX)minX=x; if(x>maxX)maxX=x;
     if(y<minY)minY=y; if(y>maxY)maxY=y;
     if(z<minZ)minZ=z; if(z>maxZ)maxZ=z;
   }
   const diag = Math.hypot(maxX-minX, maxY-minY, maxZ-minZ) || 1;
-  // degree 0.2 -> fine grid (subtle), degree 0.75 -> coarse grid (strong lowpoly)
   const cell = diag * (0.004 + degree*0.05);
-
-  const effectiveCell = style === 'sphere' ? cell * 0.4 : cell; // sphere: finer grid, keep more vertices for smooth curvature
+  const effectiveCell = style === 'sphere' ? cell * 0.4 : cell;
   const cellOf = (x,y,z) => {
     let ix = Math.round(x/effectiveCell), iy = Math.round(y/effectiveCell), iz = Math.round(z/effectiveCell);
-    if (style === 'cube') { /* snap harder to axis grid -> blockier */ }
     if (style === 'crystal') { ix = Math.round(ix/2)*2; iz = Math.round(iz/2)*2; }
     return ix+'_'+iy+'_'+iz;
   };
@@ -588,7 +568,7 @@ async function lowpolyReduce(mesh, degree, style, onProgress){
   const clusterMap = new Map();
   const clusterOf = new Int32Array(vCount);
   const clusterSum = []; const clusterCount = [];
-  const clusterUVSum = mesh.uvs && mesh.uvs.length ? [] : null;  // ←追加①
+  const clusterUVSum = mesh.uvs && mesh.uvs.length ? [] : null;
   const CHUNK = 20000;
   for (let i=0;i<vCount;i++){
     const x=positions[i*3],y=positions[i*3+1],z=positions[i*3+2];
@@ -599,18 +579,24 @@ async function lowpolyReduce(mesh, degree, style, onProgress){
       clusterMap.set(k, cIdx);
       clusterSum.push(x,y,z);
       clusterCount.push(1);
+      if (clusterUVSum) clusterUVSum.push(mesh.uvs[i*2], mesh.uvs[i*2+1]);
     } else {
       clusterSum[cIdx*3]+=x; clusterSum[cIdx*3+1]+=y; clusterSum[cIdx*3+2]+=z;
       clusterCount[cIdx]++;
+      if (clusterUVSum) {
+        clusterUVSum[cIdx*2]+=mesh.uvs[i*2];
+        clusterUVSum[cIdx*2+1]+=mesh.uvs[i*2+1];
+      }
     }
     clusterOf[i] = cIdx;
     if (i % CHUNK === 0) { onProgress && onProgress(i/vCount*60); await yieldFrame(); }
   }
+
   const newPositions = [];
-  const newUVs = clusterUVSum ? [] : null;  // ←追加③
+  const newUVs = clusterUVSum ? [] : null;
   for (let c=0;c<clusterCount.length;c++){
     newPositions.push(clusterSum[c*3]/clusterCount[c], clusterSum[c*3+1]/clusterCount[c], clusterSum[c*3+2]/clusterCount[c]);
-    if (newUVs) newUVs.push(clusterUVSum[c*2]/clusterCount[c], clusterUVSum[c*2+1]/clusterCount[c]);  // ←追加③
+    if (newUVs) newUVs.push(clusterUVSum[c*2]/clusterCount[c], clusterUVSum[c*2+1]/clusterCount[c]);
   }
 
   const triCount = faces.length/3;
@@ -618,9 +604,9 @@ async function lowpolyReduce(mesh, degree, style, onProgress){
   const seen = new Set();
   for (let t=0;t<triCount;t++){
     const a=clusterOf[faces[t*3]], b=clusterOf[faces[t*3+1]], c=clusterOf[faces[t*3+2]];
-    if (a===b || b===c || a===c) continue; // degenerate after clustering
+    if (a===b || b===c || a===c) continue;
     const keyArr = [a,b,c].slice().sort((x,y)=>x-y);
-    const key = style==='chamfer' ? (a+'_'+b+'_'+c) : keyArr.join('_'); // chamfer keeps orientation duplicates (more faceted look)
+    const key = style==='chamfer' ? (a+'_'+b+'_'+c) : keyArr.join('_');
     if (seen.has(key) && style !== 'chamfer') continue;
     seen.add(key);
     newFaces.push(a,b,c);
@@ -630,23 +616,18 @@ async function lowpolyReduce(mesh, degree, style, onProgress){
   let resultMesh = {
     positions: new Float32Array(newPositions),
     faces: new Uint32Array(newFaces),
+    uvs: newUVs ? new Float32Array(newUVs) : mesh.uvs,
+    faceUV: mesh.faceUV,
     lowpolyFrom: vCount, lowpolyTo: clusterCount.length
   };
-
   if (style === 'sphere') {
-    // Extra rounding pass: keeps the higher vertex count but relaxes faceting into smooth curvature
     const roundIterations = 2 + Math.round(degree * 3);
     resultMesh = await taubinSmooth(resultMesh, roundIterations, () => {});
     resultMesh.lowpolyFrom = vCount;
     resultMesh.lowpolyTo = clusterCount.length;
   }
-
-  return {
-    positions: new Float32Array(newPositions),
-    faces: newFaces,
-    uvs: newUVs ? new Float32Array(newUVs) : mesh.uvs,  // ←変更④
-    faceUV: mesh.faceUV
-  }
+  return resultMesh;
+}
 
 /* ==========================================================================
    MAIN "自動補正を実行" PIPELINE
