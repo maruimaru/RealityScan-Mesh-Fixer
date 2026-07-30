@@ -401,6 +401,7 @@ async function weldVertices(mesh, dist, onProgress){
   const key = (x,y,z) => x+'_'+y+'_'+z;
   const remap = new Int32Array(vCount).fill(-1);
   const newPositions = [];
+  const newUVs = mesh.uvs && mesh.uvs.length ? [] : null;  // ←追加①
   let newCount = 0;
   const CHUNK = 15000;
   for (let i=0;i<vCount;i++){
@@ -421,6 +422,7 @@ async function weldVertices(mesh, dist, onProgress){
     else {
       const j = newCount++;
       newPositions.push(x,y,z);
+      if (newUVs) newUVs.push(mesh.uvs[i*2], mesh.uvs[i*2+1]);  // ←追加②
       remap[i] = j;
       const k = key(ix,iy,iz);
       if (!grid.has(k)) grid.set(k, []);
@@ -430,7 +432,14 @@ async function weldVertices(mesh, dist, onProgress){
   }
   const newFaces = new Uint32Array(faces.length);
   for (let i=0;i<faces.length;i++) newFaces[i] = remap[faces[i]];
-  return { positions: new Float32Array(newPositions), faces: newFaces, weldedFrom: vCount, weldedTo: newCount, uvs: mesh.uvs, faceUV: mesh.faceUV };
+  return {
+    positions: new Float32Array(newPositions),
+    faces: newFaces,
+    weldedFrom: vCount,
+    weldedTo: newCount,
+    uvs: newUVs ? new Float32Array(newUVs) : mesh.uvs,  // ←変更③
+    faceUV: mesh.faceUV
+  };
 }
 
 async function removeSpikes(mesh, ratioThreshold, onProgress){
