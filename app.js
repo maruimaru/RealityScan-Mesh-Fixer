@@ -656,7 +656,9 @@ convertBtn.addEventListener('click', async () => {
   const keepLargest = keepLargestEl.checked;
 
   try {
-    let mesh = { positions: originalMesh.positions, faces: originalMesh.faces, uvs: originalMesh.uvs, faceUV: originalMesh.faceUV };
+    let mesh = {
+      positions: originalMesh.positions, faces: originalMesh.faces, uvs: originalMesh.uvs, faceUV: originalMesh.faceUV, hasTexture: originalMesh.hasTexture, textureImage: originalMesh.textureImage
+   　};
     const origV = mesh.positions.length/3, origF = mesh.faces.length/3;
 
     if (weldDist > 0) {
