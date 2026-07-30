@@ -491,10 +491,13 @@ async function keepLargestComponent(mesh, onProgress){
   for (let i=0;i<vCount;i++) if (find(i)===bestRoot) keepVert[i]=1;
   const remap = new Int32Array(vCount).fill(-1);
   const newPositions = [];
-　const newUVs = mesh.uvs && mesh.uvs.length ? [] : null;  // ←追加
+  const newUVs = mesh.uvs && mesh.uvs.length ? [] : null;
   let newCount=0;
-  for (let i=0;i<vCount;i++) if (keepVert[i]) { remap[i]=newCount++; newPositions.push(positions[i*3],positions[i*3+1],positions[i*3+2]); }
-    if (newUVs) newUVs.push(mesh.uvs[i*2], mesh.uvs[i*2+1]);  // ←追加
+  for (let i=0;i<vCount;i++) if (keepVert[i]) {
+    remap[i]=newCount++;
+    newPositions.push(positions[i*3],positions[i*3+1],positions[i*3+2]);
+    if (newUVs) newUVs.push(mesh.uvs[i*2], mesh.uvs[i*2+1]);
+  }
   const newFaces=[]; let droppedFaces=0;
   for (let t=0;t<triCount;t++){
     const ia=faces[t*3],ib=faces[t*3+1],ic=faces[t*3+2];
@@ -502,8 +505,13 @@ async function keepLargestComponent(mesh, onProgress){
     else droppedFaces++;
     if (t % CHUNK === 0) { onProgress && onProgress(50+t/triCount*50); await yieldFrame(); }
   }
-  return { positions: new Float32Array(newPositions), faces: new Uint32Array(newFaces), uvs: newUVs ? new Float32Array(newUVs) : mesh.uvs,  // ←追加
-    faceUV: mesh.faceUV, componentsFound: compSize.size, verticesDropped: vCount-newCount, facesDropped: droppedFaces };
+  return {
+    positions: new Float32Array(newPositions),
+    faces: new Uint32Array(newFaces),
+    uvs: newUVs ? new Float32Array(newUVs) : mesh.uvs,
+    faceUV: mesh.faceUV,
+    componentsFound: compSize.size, verticesDropped: vCount-newCount, facesDropped: droppedFaces
+  };
 }
 
 async function taubinSmooth(mesh, iterations, onProgress){
