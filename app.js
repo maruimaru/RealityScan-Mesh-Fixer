@@ -548,9 +548,27 @@ async function lowpolyReduce(mesh, degree, style, onProgress){
   if (degree <= 0) return mesh;
   const { positions, faces } = mesh;
   const vCount = positions.length/3;
-  let minX=Infinity,minY=Infinity,minZ=Infinity,maxX=-Infinity,maxY=-Infinity,maxZ=-Infinity;
   for (let i=0;i<vCount;i++){
     const x=positions[i*3],y=positions[i*3+1],z=positions[i*3+2];
+    const k = cellOf(x,y,z);
+    let cIdx = clusterMap.get(k);
+    if (cIdx === undefined) {
+      cIdx = clusterSum.length/3;
+      clusterMap.set(k, cIdx);
+      clusterSum.push(x,y,z);
+      clusterCount.push(1);
+      if (clusterUVSum) clusterUVSum.push(mesh.uvs[i*2], mesh.uvs[i*2+1]);  // ←追加②
+    } else {
+      clusterSum[cIdx*3]+=x; clusterSum[cIdx*3+1]+=y; clusterSum[cIdx*3+2]+=z;
+      clusterCount[cIdx]++;
+      if (clusterUVSum) {  // ←追加②
+        clusterUVSum[cIdx*2]+=mesh.uvs[i*2];
+        clusterUVSum[cIdx*2+1]+=mesh.uvs[i*2+1];
+      }
+    }
+    clusterOf[i] = cIdx;
+    if (i % CHUNK === 0) { onProgress && onProgress(i/vCount*60); await yieldFrame(); }
+  }
     if(x<minX)minX=x; if(x>maxX)maxX=x;
     if(y<minY)minY=y; if(y>maxY)maxY=y;
     if(z<minZ)minZ=z; if(z>maxZ)maxZ=z;
@@ -570,6 +588,7 @@ async function lowpolyReduce(mesh, degree, style, onProgress){
   const clusterMap = new Map();
   const clusterOf = new Int32Array(vCount);
   const clusterSum = []; const clusterCount = [];
+  const clusterUVSum = mesh.uvs && mesh.uvs.length ? [] : null;  // ←追加①
   const CHUNK = 20000;
   for (let i=0;i<vCount;i++){
     const x=positions[i*3],y=positions[i*3+1],z=positions[i*3+2];
@@ -588,8 +607,10 @@ async function lowpolyReduce(mesh, degree, style, onProgress){
     if (i % CHUNK === 0) { onProgress && onProgress(i/vCount*60); await yieldFrame(); }
   }
   const newPositions = [];
+  const newUVs = clusterUVSum ? [] : null;  // ←追加③
   for (let c=0;c<clusterCount.length;c++){
     newPositions.push(clusterSum[c*3]/clusterCount[c], clusterSum[c*3+1]/clusterCount[c], clusterSum[c*3+2]/clusterCount[c]);
+    if (newUVs) newUVs.push(clusterUVSum[c*2]/clusterCount[c], clusterUVSum[c*2+1]/clusterCount[c]);  // ←追加③
   }
 
   const triCount = faces.length/3;
@@ -620,8 +641,12 @@ async function lowpolyReduce(mesh, degree, style, onProgress){
     resultMesh.lowpolyTo = clusterCount.length;
   }
 
-  return resultMesh;
-}
+  return {
+    positions: new Float32Array(newPositions),
+    faces: newFaces,
+    uvs: newUVs ? new Float32Array(newUVs) : mesh.uvs,  // ←変更④
+    faceUV: mesh.faceUV
+  }
 
 /* ==========================================================================
    MAIN "自動補正を実行" PIPELINE
