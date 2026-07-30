@@ -438,7 +438,8 @@ async function weldVertices(mesh, dist, onProgress){
     weldedFrom: vCount,
     weldedTo: newCount,
     uvs: newUVs ? new Float32Array(newUVs) : mesh.uvs,  // ←変更③
-    faceUV: mesh.faceUV
+    faceUV: mesh.faceUV,
+    hasTexture: mesh.hasTexture, textureImage: mesh.textureImage 
   };
 }
 
@@ -467,7 +468,7 @@ async function removeSpikes(mesh, ratioThreshold, onProgress){
   }
   const newFaces = [];
   for (let t=0;t<triCount;t++) if (keep[t]) newFaces.push(faces[t*3],faces[t*3+1],faces[t*3+2]);
-  return { positions: mesh.positions, faces: new Uint32Array(newFaces), spikesRemoved: removed, uvs: mesh.uvs, faceUV: mesh.faceUV };
+  return { positions: mesh.positions, faces: new Uint32Array(newFaces), spikesRemoved: removed, uvs: mesh.uvs, faceUV: mesh.faceUV, hasTexture: mesh.hasTexture, textureImage: mesh.textureImage };
 }
 
 async function keepLargestComponent(mesh, onProgress){
@@ -510,7 +511,8 @@ async function keepLargestComponent(mesh, onProgress){
     faces: new Uint32Array(newFaces),
     uvs: newUVs ? new Float32Array(newUVs) : mesh.uvs,
     faceUV: mesh.faceUV,
-    componentsFound: compSize.size, verticesDropped: vCount-newCount, facesDropped: droppedFaces
+    componentsFound: compSize.size, verticesDropped: vCount-newCount, facesDropped: droppedFaces, 
+    hasTexture: mesh.hasTexture, textureImage: mesh.textureImage 
   };
 }
 
@@ -550,7 +552,7 @@ async function taubinSmooth(mesh, iterations, onProgress){
     onProgress && onProgress((it+1)/iterations*100);
     await yieldFrame();
   }
-  return { positions: pos, faces, uvs: mesh.uvs, faceUV: mesh.faceUV };
+  return { positions: pos, faces, uvs: mesh.uvs, faceUV: mesh.faceUV, hasTexture: mesh.hasTexture, textureImage: mesh.textureImage };
 }
 
 /* Lowpoly: quadric-ish edge collapse approximation via vertex clustering.
@@ -629,7 +631,8 @@ async function lowpolyReduce(mesh, degree, style, onProgress){
     faces: new Uint32Array(newFaces),
     uvs: newUVs ? new Float32Array(newUVs) : mesh.uvs,
     faceUV: mesh.faceUV,
-    lowpolyFrom: vCount, lowpolyTo: clusterCount.length
+    lowpolyFrom: vCount, lowpolyTo: clusterCount.length,
+    hasTexture: mesh.hasTexture, textureImage: mesh.textureImage 
   };
   if (style === 'sphere') {
     const roundIterations = 2 + Math.round(degree * 3);
