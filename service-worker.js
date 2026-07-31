@@ -1,4 +1,4 @@
-const CACHE_NAME = "scanfix-v3";
+const CACHE_NAME = "scanfix-v4";
 const ASSETS = [
   "./", "./index.html", "./app.js", "./manifest.json",
   "./assets/scanfix-192.png", "./assets/scanfix-512.png", "./assets/scanfix-180.png"
